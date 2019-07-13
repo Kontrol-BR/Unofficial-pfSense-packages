@@ -31,6 +31,12 @@ $pfs_version = substr(trim(file_get_contents("/etc/version")),0,3);
 
 require_once("xmlrpc_client.inc");
 
+if (version_compare(PHP_VERSION, "7.3") < 0 && !function_exists("is_countable")) {
+    function is_countable($var): bool{
+        return (is_array($var) || is_object($var) || is_iterable($var) || $var instanceof Countable);
+    }
+}
+
 $shortcut_section = "e2guardian";
 
 $pf_version = substr(trim(file_get_contents("/etc/version")), 0, 3);
@@ -371,7 +377,10 @@ function sync_package_e2guardian($via_rpc = "no", $install_process = false) {
 			'loglevel' => '3',
 			'logexceptionhits' => '2',
 			'logfileformat' => '1',
-            'logrotate' => 'on');
+            'logrotate' => 'on',
+		    'cronminute' => '0',
+		    'cronhour' => '0'
+		);
 	}
 	$e2guardian_log = $config['installedpackages']['e2guardianlog']['config'][0];
 	if (is_array($config['installedpackages']['e2guardianlimits'])) {
@@ -505,7 +514,9 @@ function sync_package_e2guardian($via_rpc = "no", $install_process = false) {
 	$loglevel = ($e2guardian_log['loglevel'] ? $e2guardian_log['loglevel'] : "2");
 	$logexceptionhits = ($e2guardian_log['logexceptionhits'] ? $e2guardian_log['logexceptionhits'] : "2");
 	$logfileformat = ($e2guardian_log['logfileformat'] ? $e2guardian_log['logfileformat'] : "1");
-	$logrotate = ($e2guardian_log['logrotate'] == "on" ? "on" : "off");
+	$logrotate = ($e2guardian_log['logrotate']  ? "on" : "off");
+	$cronminute = ($e2guardian_log['cronminute'] ? $e2guardian_log['cronminute'] : "0");
+	$cronhour = ($e2guardian_log['cronhour']  ? $e2guardian_log['cronhour'] : "0");
 	$logfilecount = ($e2guardian_log['logcount'] ? $e2guardian_log['logcount'] : "30");
 
 	
@@ -1409,8 +1420,10 @@ break;
 				}
 			}
 		}
-		$filtergroup_count = count($import_users);
-		$filtergroupip_count = count($import_ips);
+		is_countable($import_users) ? $filtergroup_count = count($import_users) : $filtergroup_count=0;
+		is_countable($import_ips) ? $filtergroupip_count = count($import_ips) : $filtergroupip_count=0;
+// 		$filtergroup_count = count($import_users);
+// 		$filtergroupip_count = count($import_ips);
 		//Default group catch all unauth groups as well non listed users
 		if ($count > 1)
 		$user_xml .=<<<EOF
@@ -1525,7 +1538,7 @@ EOF;
 	$cron_cmd = "/usr/local/bin/php -q ${lrt_file}";
 	if ($logrotate == "on") {
         log_error("Log rotate on");
-		e2g_check_cron($cron_cmd, "create", "0", "0");
+		e2g_check_cron($cron_cmd, "create", $cronminute, $cronhour);
 	} else {
 		file_put_contents($lrt_file, "", LOCK_EX);
 		e2g_check_cron($cron_cmd, "remove");
@@ -1592,7 +1605,7 @@ EOF;
 			if (preg_match('/(\d+)(h|m)/', $e2guardian_groups['freq'], $matches)) {
 			    switch ($matches[2]){
 			        case 'm':
-			            e2g_check_cron("{$cron_cmd} $e2_group_source '{$e2guardian_groups[$e2_group_source]}'", "create", "*/{$matches[1]}", "0");
+			            e2g_check_cron("{$cron_cmd} $e2_group_source '{$e2guardian_groups[$e2_group_source]}'", "create", "*/{$matches[1]}", "*");
 			            break;
 			        case 'h':
 			            e2g_check_cron("{$cron_cmd} $e2_group_source '{$e2guardian_groups[$e2_group_source]}'", "create",  "0", "*/{$matches[1]}");
@@ -1903,7 +1916,7 @@ function e2guardian_validate_input($post, &$input_errors) {
 	    !in_array('reverseclientiplookups', $post['scan_options'])) {
 		$input_errors[] = "Scan option 'Log client hostnames' needs 'Reverse client ip lookups' to be selected as well.";
 	}
-	if (sizeof ($post['group_options']) > 0) {
+	if (is_array($post['group_options']) && sizeof ($post['group_options']) > 0) {
 		$_POST['lgroupoptions'] = implode (" ", $post['group_options']);
 	}
 	if ($post['banned_sitelist'] != "") {

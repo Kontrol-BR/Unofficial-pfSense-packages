@@ -2,7 +2,7 @@
 
 PORTNAME=	pfSense-pkg-postfix
 PORTVERSION=	3.3.4
-PORTREVISION=	3
+PORTREVISION=	12
 CATEGORIES=	mail
 MASTER_SITES=	# empty
 DISTFILES=	# empty
@@ -16,9 +16,11 @@ RUN_DEPENDS=	postfix:mail/postfix-sasl \
 		opendkim:mail/opendkim \
 		pflogsumm:mail/pflogsumm \
 		libspf2>0:mail/libspf \
-		postfix-policyd-spf-perl>0:mail/postfix-policyd-spf-perl \
+		bash:shells/bash \
+		libzip>0:archivers/libzip \
+		php72-zip>0:archivers/php72-zip \
+		policyd-spf:mail/postfix-policyd-spf-python \
 		postfwd:mail/postfix-postfwd \
-		opendmarc:mail/opendmarc \
 		zip:archivers/zip
 
 USE_PERL5=	run
